@@ -1,9 +1,13 @@
+# filepath: /aiPlaylistGenerator/create_spotify_playlist.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
+#©MxBit2020
+#Enjoy
+
 # ---- KONFIG ----
 VENV_DIR="venv_spotify"
-SCRIPT_NAME="main2.py"
+SCRIPT_NAME="main.py"
 LOG_FILE="spotify_playlist.log"
 
 # Farben
@@ -32,8 +36,6 @@ if [[ ! -f ".env" ]]; then
   echo -e "${RED}Fehler: .env-Datei mit SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET und SPOTIPY_REDIRECT_URI fehlt.${NC}"
   exit 1
 fi
-
-# Format-Check entfernt, da main2.py "Songname - Artist"-Format unterstützt
 
 # ---- VENV ----
 echo -e "${YELLOW}Prüfe Python-Umgebung...${NC}"
