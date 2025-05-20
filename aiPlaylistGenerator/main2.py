@@ -18,20 +18,59 @@ def log(message: str) -> None:
     with open("spotify_playlist.log", "a", encoding="utf-8") as f:
         f.write(entry + "\n")
 
-# Funktion: Suche eine Track-ID über Spotify API anhand von "Song - Künstler"
+# Verbesserte Funktion: Flexiblere Suche nach Track-ID
 def search_track_id(sp: spotipy.Spotify, query: str) -> str:
     """
-    Sucht den Track exakt mit der Zeichenkette "Song - Künstler".
+    Sucht einen Track mit verschiedenen Suchstrategien:
+    1. Erst versuchen, nach Titel und Künstler getrennt zu suchen
+    2. Falls nicht erfolgreich, versuchen mit allgemeiner Suche
+    3. Falls nicht erfolgreich, versuchen mit teilweiser Übereinstimmung
+    
     Gibt die erste gefundene ID zurück oder None.
     """
+    track_id = None
+    
     try:
-        result = sp.search(q=f'track:"{query}"', type="track", limit=1)
-        items = result.get("tracks", {}).get("items", [])
-        if items:
-            return items[0]["id"]
+        # Strategie 1: Suche mit track und artist Parametern getrennt
+        if " - " in query:
+            track_name, artist = query.split(" - ", 1)
+            result = sp.search(q=f'track:"{track_name}" artist:"{artist}"', type="track", limit=1)
+            items = result.get("tracks", {}).get("items", [])
+            if items:
+                track_id = items[0]["id"]
+                log(f"Gefunden via präzise Suche: {query}")
+                return track_id
+        
+        # Strategie 2: Allgemeine Suche mit vollständiger Query
+        if not track_id:
+            result = sp.search(q=query, type="track", limit=1)
+            items = result.get("tracks", {}).get("items", [])
+            if items:
+                track_id = items[0]["id"]
+                log(f"Gefunden via allgemeine Suche: {query}")
+                return track_id
+        
+        # Strategie 3: Weniger präzise Suche für Titel mit Spezialzeichen
+        if not track_id and " - " in query:
+            track_name, artist = query.split(" - ", 1)
+            # Entferne Sonderzeichen und Klammern
+            clean_track = re.sub(r'[^\w\s]', '', track_name)
+            clean_artist = re.sub(r'[^\w\s]', '', artist)
+            result = sp.search(q=f'{clean_track} {clean_artist}', type="track", limit=1)
+            items = result.get("tracks", {}).get("items", [])
+            if items:
+                track_id = items[0]["id"]
+                track_info = f"{items[0]['name']} - {items[0]['artists'][0]['name']}"
+                log(f"Gefunden via flexible Suche: {query} → {track_info}")
+                return track_id
+        
+        # Wenn immer noch nichts gefunden wurde
+        log(f"Nicht gefunden: {query}")
+        return None
+        
     except Exception as e:
         log(f"Fehler bei der Suche nach '{query}': {e}")
-    return None
+        return None
 
 # Hauptfunktion
 def main():
@@ -112,11 +151,10 @@ def main():
             track_ids.append(http_match.group(1))
             log(f"HTTP-Link-ID genutzt: {http_match.group(1)}")
             continue
-        # Andernfalls interpretiere als "Song - Künstler"
+        # Andernfalls interpretiere als "Song - Künstler" mit verbesserter Suche
         tid = search_track_id(sp, line)
         if tid:
             track_ids.append(tid)
-            log(f"Gefunden via Suche: {line} → {tid}")
         else:
             log(f"Nicht gefunden: {line}")
 
